@@ -143,6 +143,39 @@ def logout():
     return jsonify({"message": "Logout successful"}), 200
 
 
+
+# User Delete (Thomas Sharp)
+@app.route('/auth/delete-account', methods=['POST'])
+def delete_account():
+    # Verify account token
+    auth_header = request.headers.get('Authorization')
+    if not auth_header or not auth_header.startswith('Bearer '):
+        return jsonify({"error": "No token provided"}), 401
+
+    token = auth_header.split(' ')[1]
+    info = decode_token(token)
+
+    jti = info.get('jti')
+    if not jti:
+        return jsonify({"error": "Invalid token payload"}), 400
+
+    with get_db() as db:
+        if _is_blacklisted(db, jti):
+            return jsonify({"error": "Token revoked"}), 401
+        
+        user = db.query(User).filter(User.id == info['user_id']).first()
+        db.delete(user)
+        db.commit()
+    
+    return jsonify({
+        "message": "account successfully deleted",
+        "user": {
+            "id": info['user_id'],
+            "email": info['email'],
+            "name": info['name']
+        }
+    }), 200
+
 # Check token validation
 @app.route('/auth/verify', methods=['GET'])
 def verify():

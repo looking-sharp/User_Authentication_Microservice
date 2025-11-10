@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<head>
+    <title>Admin Pannel</title>
+    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/admin.css') }}">
+</head>
+<body data-view="blacklist">
+    {% if blacklist_data | length == 0 %}
+    <ul class="tabs-menu" role="tablist">
+        <li class="tabs-menu-item" role="presentation">
+            <a href="/admin/{{access_code}}?view=users" tabindex="0" title="Users View" aria-selected="true" role="tab" data-tab-index="0">Users</a></li>
+        <li class="tabs-menu-item is-active" role="presentation">
+            <a tabindex="-1" title="Blacklisted Tokens" aria-selected="false" role="tab" data-tab-index="2">Blacklisted Tokens</a></li>
+        <li class="tabs-menu-item" role="presentation">
+            <a href="/admin/{{access_code}}?" tabindex="-1" title="Add User" aria-selected="false" role="tab" data-tab-index="2">Add User</a></li>
+    </ul>
+    <span class="json-key">"message"</span>: <span class="json-string">"No Blacklisted Tokens found"</span>
+    {% else %}
+        <ul class="tabs-menu" role="tablist">
+            <li class="tabs-menu-item" role="presentation">
+                <a href="/admin/{{access_code}}?view=users" tabindex="0" title="Users View" aria-selected="true" role="tab" data-tab-index="0">Users</a></li>
+            <li class="tabs-menu-item is-active" role="presentation">
+                <a tabindex="-1" title="Blacklisted Tokens" aria-selected="false" role="tab" data-tab-index="2">Blacklisted Tokens</a></li>
+            <li class="tabs-menu-item" role="presentation">
+                <a href="/admin/{{access_code}}?" tabindex="-1" title="Add User" aria-selected="false" role="tab" data-tab-index="2">Add User</a></li>
+        </ul>
+        <div class="toolbar">
+            <button class="btn" id="colapseBtn">Colapse All</button>
+            <button class="btn" id="expandBtn">Expand All</button>
+            <button class="btn" id="sortByBtn">Sort By <span class="arrow" id="sortArrow">▶</span></button>
+            <div id="sort-list" class="autocomplete-items-sort" style="display: none;"></div>
+            <div class="autocomplete">
+                <svg viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg" fill="#b8c8d9"><g id="SVGRepo_bgCarrier" stroke-width="0"></g><g id="SVGRepo_tracerCarrier" stroke-linecap="round" stroke-linejoin="round"></g><g id="SVGRepo_iconCarrier"><path fill="#777f87" d="M384 523.392V928a32 32 0 0 0 46.336 28.608l192-96A32 32 0 0 0 640 832V523.392l280.768-343.104a32 32 0 1 0-49.536-40.576l-288 352A32 32 0 0 0 576 512v300.224l-128 64V512a32 32 0 0 0-7.232-20.288L195.52 192H704a32 32 0 1 0 0-64H128a32 32 0 0 0-24.768 52.288L384 523.392z"></path></g></svg>
+                <input type="text" placeholder='Filter Tokens (e.g. "field": value)' class="filter-text" id="filter-text">
+            </div>
+            <button class="btn" id="searchBtn">Search</button>
+        </div>
+        
+        {% for token in blacklist_data %}
+        {% set valid = token.valid %}
+        <div class="user-entry {{ 'valid' if valid else 'invalid' }}">
+        <div class="header" onclick="toggleDetails('{{ token.id }}')">
+            <span class="monospace-text">
+                <b>Token ID:</b> {{ token.id }}
+            </span>
+            <span class="arrow" id="arrow-{{ token.id }}">▶</span>
+        </div>
+        <div class="details" id="details-{{ token.id }}" style="display: none;">
+            <div class="json-section">
+                {<br>
+                <span style="display: none;" class="id">{{token.id}}</span>
+                
+                &nbsp;&nbsp;<span class="json-key">"jti"</span>: 
+                <span class="json-string jti">"{{ token.jti }}"</span>,<br>
+
+                &nbsp;&nbsp;<span class="json-key">"created_at"</span>: 
+                <span class="json-string created_at_formatted">"{{ (token.created_at | friendly_datetime) }}"</span><br>
+                <span class="json-string created_at" style="display: none;">"{{ token.created_at }}"</span>
+                
+                &nbsp;&nbsp;<span class="json-key">"expires_at"</span>: 
+                <span class="json-string expires_at_formatted">"{{ (token.expires_at | friendly_datetime) }}"</span><br>
+                <span class="json-string expires_at" style="display: none;">"{{ token.expires_at }}"</span>
+
+                }
+            </div>
+        </div>
+        </div>
+        {% endfor %}
+    {% endif %}
+    <script src="{{ url_for('static',filename='scripts/admin.js') }}"></script>
+    <script src="{{ url_for('static',filename='scripts/autocomplete.js') }}"></script>
+    <script src="{{ url_for('static',filename='scripts/sort.js') }}"></script>
+    
+</body>

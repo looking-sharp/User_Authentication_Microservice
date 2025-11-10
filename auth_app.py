@@ -5,7 +5,7 @@ import os
 
 from database import init_db, get_db, add_to_db
 from models import User
-from auth import hash_password, decode_token, verify_password, create_token
+from auth import hash_password, decode_token, verify_password, create_token, create_short_token
 
 load_dotenv()
 app = Flask(__name__)
@@ -52,11 +52,14 @@ def register():
 
         # Save new user with hashed password
         hashed = hash_password(password)
-        new_user = User(email=email, name=name, password_hash=hashed)
+        short_token = create_short_token(12)
+        
+        new_user = User(email=email, name=name, password_hash=hashed, short_token=short_token)
         add_to_db(db, new_user)
 
     return jsonify({
         "user_id": new_user.id,
+        "short_token": new_user.short_token,
         "message": "User created successfully"
     }), 201
 
@@ -82,6 +85,12 @@ def login():
         if not verify_password(password, user.password_hash):
             return jsonify({"error": "Invalid email or password"}), 401
 
+        # Create short token if missing
+        if not user.short_token:
+            user.short_token = create_short_token(12)
+            db.commit()
+            db.refresh(user)
+        
         # create token
         token = create_token(user.id, user.email, user.name)
 
@@ -89,8 +98,8 @@ def login():
     return jsonify({
         "token": token,
         "user_id": user.id,
+        "short_token": user.short_token,
         "message": "Login Successful",
-        "Content-Type": 'application/json' 
     }), 200
 
 
@@ -121,7 +130,23 @@ def verify():
         }
     }), 200
 
+# Find user by short token
+@app.route('/auth/user-by-short/<short_token>', methods=['GET'])
+def get_user_by_short(short_token):
+    with get_db() as db:
+        user = db.query(User).filter(User.short_token == short_token).first()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+
+        return jsonify({
+            "id": user.id,
+            "email": user.email,
+            "name": user.name,
+            "short_token": user.short_token,
+        }), 200
+        
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5001))
+
     app.run(host='0.0.0.0', port=port, debug=True)

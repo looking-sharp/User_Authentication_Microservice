@@ -3,6 +3,7 @@ import jwt      # JWT tokens
 import datetime # Token expiration time
 import os       # Read .env
 import uuid     # Create unique ID
+import secrets # Short token
 
 # JWT basic setting
 # Read secret key from .env, or use default 
@@ -44,3 +45,7 @@ def decode_token(token: str) -> dict:
         raise Exception('Token expired')
     except jwt.InvalidTokenError:
         raise Exception('Invalid token')
+
+def create_short_token(length: int = 12) -> str:
+    """Create short for URL"""
+    return secrets.token_urlsafe(length)[:length]

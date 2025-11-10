@@ -229,17 +229,17 @@ h1 {
     text-decoration: none;
 }
 
-.test-email { 
+.test-user { 
     width: 600px; 
     margin: auto; 
 }
 
-.test-email label { 
+.test-user label { 
     display: inline-block; 
     margin-top: 1em; 
 }
 
-.test-email input[type="text"],input[type="email"], textarea {
+.test-user input[type="text"],input[type="email"], input[type="password"], textarea {
     width: 97%; 
     padding: 0.5em; 
     margin-top: 0.2em; 
@@ -247,7 +247,7 @@ h1 {
     color: white;
 }
 
-.test-email button { 
+.test-user button { 
     margin-top: 1.5em;
     padding: 0.7em 1.5em;
     color: rgb(177,177,179);
@@ -260,6 +260,35 @@ h1 {
     vertical-align: middle;
     cursor: pointer;
     border-radius: 2px;
+}
+
+.form-container {
+    display: flex;
+    align-items: flex-start;
+    gap: 20px;
+    justify-content: center;
+    max-width: 700px;
+    margin: auto;
+    margin-bottom: 30px;
+}
+pre {
+    background: #1e1e1e;
+    color: #c0c0c0;
+    border-radius: 5px;
+    min-width: 300px;
+    max-width: 400px;
+    white-space: pre-wrap;
+    overflow-x: auto;
+    flex-shrink: 0;
+    word-break: break-all;
+}
+
+.response-div {
+    display: block;
+}
+
+.response-div h2 {
+    margin-bottom: 0;
 }
 
 .checkHolder {

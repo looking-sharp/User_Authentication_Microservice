@@ -156,12 +156,14 @@ def delete_account():
     info = decode_token(token)
 
     jti = info.get('jti')
+    exp = info.get('exp')
     if not jti:
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
         if _is_blacklisted(db, jti):
             return jsonify({"error": "Token revoked"}), 401
+        _blacklist_token(db, jti, exp)
         
         user = db.query(User).filter(User.id == info['user_id']).first()
         db.delete(user)
@@ -309,8 +311,8 @@ def adminPannel(access_code):
                     "valid": expires_at > now
                 })
             return render_template("admin-blacklistView.html",blacklist_data=enriched,access_code=access_code)
-        elif view == "test_email":
-            return render_template("admin-testEmailView.html", access_code=access_code)
+        elif view == "add_user":
+            return render_template("admin-addUser.html", access_code=access_code)
 
 
 if __name__ == '__main__':

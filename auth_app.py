@@ -5,7 +5,7 @@ import os
 
 from database import init_db, get_db, add_to_db
 from models import User
-from auth import hash_password, decode_token  # login teammate will use verify_password later
+from auth import hash_password, decode_token, verify_password, create_token
 
 load_dotenv()
 app = Flask(__name__)
@@ -61,11 +61,38 @@ def register():
     }), 201
 
 
-# User login (teammate)
+# User login (Thomas Sharp)
 @app.route('/auth/login', methods=['POST'])
 def login():
-    # TODO: implement by login owner
-    return jsonify({"message": "login not implemented"}), 501
+    data = request.json or {}
+    email = data.get('email', '').lower().strip()
+    password = data.get('password', '')
+
+    # check required fields
+    if not email or not password:
+        return jsonify({"error": "Email and password required"}), 400
+
+    with get_db() as db:
+        # find user
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        # verify password
+        if not verify_password(password, user.password_hash):
+            return jsonify({"error": "Invalid email or password"}), 401
+
+        # create token
+        token = create_token(user.id, user.email, user.name)
+
+    # return success + token
+    return jsonify({
+        "token": token,
+        "user_id": user.id,
+        "message": "Login Successful",
+        "Content-Type": 'application/json' 
+    }), 200
+
 
 
 # User logout (Elliot)

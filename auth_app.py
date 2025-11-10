@@ -3,7 +3,7 @@ from flask_cors import CORS
 from dotenv import load_dotenv
 import os
 
-from database import init_db, get_db
+from database import init_db, get_db, add_to_db
 from models import User
 from auth import hash_password, decode_token  # login teammate will use verify_password later
 
@@ -44,19 +44,16 @@ def register():
     if len(password) < 6:
         return jsonify({"error": "Password must be at least 6 characters"}), 400
 
-    db = get_db()
+    with get_db() as db:
+        # Check if email already used
+        existing = db.query(User).filter(User.email == email).first()
+        if existing:
+            return jsonify({"error": "Email already exists"}), 409
 
-    # Check if email already used
-    existing = db.query(User).filter(User.email == email).first()
-    if existing:
-        return jsonify({"error": "Email already exists"}), 409
-
-    # Save new user with hashed password
-    hashed = hash_password(password)
-    new_user = User(email=email, name=name, password_hash=hashed)
-    db.add(new_user)
-    db.commit()
-    db.refresh(new_user)
+        # Save new user with hashed password
+        hashed = hash_password(password)
+        new_user = User(email=email, name=name, password_hash=hashed)
+        add_to_db(db, new_user)
 
     return jsonify({
         "user_id": new_user.id,
@@ -99,5 +96,5 @@ def verify():
 
 
 if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
+    port = int(os.getenv('PORT', 5001))
     app.run(host='0.0.0.0', port=port, debug=True)

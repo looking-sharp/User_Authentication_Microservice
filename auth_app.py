@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, render_template, redirect, url_for
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -115,7 +115,16 @@ def login():
         "message": "Login Successful",
     }), 200
 
-
+@app.route('/auth/exists', methods=['GET'])
+def exists():
+    email = request.args.get("email", "").strip()
+    if not email:
+        return jsonify({"message": "no email provided"}), 400
+    with get_db() as db:
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            return jsonify({"message": "email availiable"}), 200
+    return jsonify({"message": "email taken"}), 200
 
 # User logout (Elliot)
 @app.route('/auth/logout', methods=['POST'])
@@ -156,12 +165,14 @@ def delete_account():
     info = decode_token(token)
 
     jti = info.get('jti')
+    exp = info.get('exp')
     if not jti:
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
         if _is_blacklisted(db, jti):
             return jsonify({"error": "Token revoked"}), 401
+        _blacklist_token(db, jti, exp)
         
         user = db.query(User).filter(User.id == info['user_id']).first()
         db.delete(user)
@@ -217,7 +228,7 @@ def get_user_by_short(short_token):
             "name": user.name,
             "short_token": user.short_token,
         }), 200
-        
+
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5001))

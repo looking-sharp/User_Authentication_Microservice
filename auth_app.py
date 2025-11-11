@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -20,20 +20,33 @@ CORS(app, resources={
     }
 })
 
-# Create database tables if not exist
-init_db()
 
-
-# add token jti to blacklist until expiration
+# Add token jti to blacklist until expiration
 def _blacklist_token(db, jti: str, exp_ts: int):
     expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
     db.add(BlacklistedToken(jti=jti, expires_at=expires_at))
     db.commit()
 
 
-# check if token jti is revoked
+# Check if token jti is revoked
 def _is_blacklisted(db, jti: str) -> bool:
     return db.query(BlacklistedToken).filter(BlacklistedToken.jti == jti).first() is not None
+
+
+# Delete expired blacklist rows
+def _prune_blacklist(db):
+    now = datetime.now(timezone.utc)
+    db.query(BlacklistedToken).filter(BlacklistedToken.expires_at < now).delete()
+    db.commit()
+
+
+# Create database tables if not exist
+init_db()
+
+
+# Prune expired tokens once at startup
+with get_db() as db:
+    _prune_blacklist(db)
 
 
 @app.route('/health', methods=['GET'])
@@ -115,18 +128,20 @@ def login():
         "message": "Login Successful",
     }), 200
 
+
 @app.route('/auth/exists', methods=['GET'])
 def exists():
-    email = request.args.get("email", "").strip()
+    email = request.args.get("email", "").lower().strip()
     if not email:
         return jsonify({"message": "no email provided"}), 400
     with get_db() as db:
         user = db.query(User).filter(User.email == email).first()
         if not user:
-            return jsonify({"message": "email availiable"}), 200
+            return jsonify({"message": "email available"}), 200
     return jsonify({"message": "email taken"}), 200
 
-# User logout (Elliot)
+
+# User logout (Elliot Hwang)
 @app.route('/auth/logout', methods=['POST'])
 def logout():
     auth_header = request.headers.get('Authorization')
@@ -145,12 +160,12 @@ def logout():
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
+        _prune_blacklist(db)
         if _is_blacklisted(db, jti):
             return jsonify({"message": "Already logged out"}), 200
         _blacklist_token(db, jti, exp)
 
     return jsonify({"message": "Logout successful"}), 200
-
 
 
 # User Delete (Thomas Sharp)
@@ -187,6 +202,7 @@ def delete_account():
         }
     }), 200
 
+
 # Check token validation
 @app.route('/auth/verify', methods=['GET'])
 def verify():
@@ -202,6 +218,7 @@ def verify():
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
+        _prune_blacklist(db)
         if _is_blacklisted(db, jti):
             return jsonify({"error": "Token revoked"}), 401
 
@@ -213,6 +230,7 @@ def verify():
             "name": payload['name']
         }
     }), 200
+
 
 # Find user by short token
 @app.route('/auth/user-by-short/<short_token>', methods=['GET'])

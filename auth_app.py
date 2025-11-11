@@ -177,7 +177,11 @@ def delete_account():
         return jsonify({"error": "No token provided"}), 401
 
     token = auth_header.split(' ')[1]
-    info = decode_token(token)
+    # return 401, not 500, on expired/invalid token
+    try:
+        info = decode_token(token)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
 
     jti = info.get('jti')
     exp = info.get('exp')

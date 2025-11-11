@@ -26,11 +26,6 @@ Service runs on `http://localhost:5001`.
 git clone https://github.com/looking-sharp/User_Authentication_Microservice.git
 cd User_Authentication_Microservice
 python -m venv venv
-# Windows PowerShell:
-#   Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass
-#   .\venv\Scripts\Activate.ps1
-# macOS/Linux:
-#   source venv/bin/activate
 python -m pip install -r requirements.txt
 cp .env.example .env   # then edit JWT_SECRET etc.
 python auth_app.py

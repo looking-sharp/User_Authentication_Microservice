@@ -124,7 +124,7 @@ def exists():
         user = db.query(User).filter(User.email == email).first()
         if not user:
             return jsonify({"message": "email availiable"}), 200
-    return jsonify({"message": "email taken"}), 401
+    return jsonify({"message": "email taken"}), 200
 
 # User logout (Elliot)
 @app.route('/auth/logout', methods=['POST'])

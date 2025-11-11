@@ -211,7 +211,11 @@ def verify():
         return jsonify({"error": "No token provided"}), 401
 
     token = auth_header.split(' ')[1]
-    payload = decode_token(token)
+    # return 401, not 500, on expired/invalid token
+    try:
+        payload = decode_token(token)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
 
     jti = payload.get('jti')
     if not jti:

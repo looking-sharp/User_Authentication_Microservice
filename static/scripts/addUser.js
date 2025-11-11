@@ -16,7 +16,7 @@ registerForm.addEventListener('submit', async function(event) {
     const payload = { email, name, password };
 
     try {
-        const response = await fetch('http://127.0.0.1:5001/auth/register', {
+        const response = await fetch('/auth/register', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -46,7 +46,7 @@ loginForm.addEventListener('submit', async function(event) {
     const payload = { email, password };
 
     try {
-        const response = await fetch('http://127.0.0.1:5001/auth/login', {
+        const response = await fetch('/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(payload)
@@ -78,7 +78,7 @@ logoutBtn.addEventListener('click', async function() {
         return;
     }
     try {
-        const response = await fetch('http://127.0.0.1:5001/auth/logout', {
+        const response = await fetch('/auth/logout', {
             method: 'POST',
             headers: { 
                 'Authorization': 'Bearer ' + token
@@ -104,7 +104,7 @@ deleteBtn.addEventListener('click', async function() {
         return;
     }
     try {
-        const response = await fetch('http://127.0.0.1:5001/auth/delete-account', {
+        const response = await fetch('/auth/delete-account', {
             method: 'POST',
             headers: { 
                 'Authorization': 'Bearer ' + token
@@ -128,7 +128,7 @@ verifyForm.addEventListener('submit', async function(event) {
     event.preventDefault();
     const token = document.getElementById("shortToken").value;
     try {
-        const response = await fetch(`http://127.0.0.1:5001/auth/user-by-short/${token}`)
+        const response = await fetch(`/auth/user-by-short/${token}`)
         const data = await response.json();
         verifyResponse.textContent = JSON.stringify(data, null, 2);
     }

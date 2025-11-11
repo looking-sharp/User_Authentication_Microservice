@@ -115,7 +115,16 @@ def login():
         "message": "Login Successful",
     }), 200
 
-
+@app.route('/auth/exists', methods=['GET'])
+def exists():
+    email = request.args.get("email", "").strip()
+    if not email:
+        return jsonify({"message": "no email provided"}), 400
+    with get_db() as db:
+        user = db.query(User).filter(User.email == email).first()
+        if not user:
+            return jsonify({"message": "email availiable"}), 200
+    return jsonify({"message": "email taken"}), 401
 
 # User logout (Elliot)
 @app.route('/auth/logout', methods=['POST'])

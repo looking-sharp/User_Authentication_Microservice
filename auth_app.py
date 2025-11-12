@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify, render_template, redirect, url_for
+from flask import Flask, request, jsonify
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -13,27 +13,40 @@ app = Flask(__name__)
 
 # Allow frontend access to these endpoints
 CORS(app, resources={
-    r"/auth/*": {
+    r"/*": {
         "origins": ["http://localhost:5173"],
         "methods": ["GET", "POST", "OPTIONS"],
         "allow_headers": ["Content-Type", "Authorization"]
     }
 })
 
-# Create database tables if not exist
-init_db()
 
-
-# add token jti to blacklist until expiration
+# Add token jti to blacklist until expiration
 def _blacklist_token(db, jti: str, exp_ts: int):
     expires_at = datetime.fromtimestamp(exp_ts, tz=timezone.utc)
     db.add(BlacklistedToken(jti=jti, expires_at=expires_at))
     db.commit()
 
 
-# check if token jti is revoked
+# Check if token jti is revoked
 def _is_blacklisted(db, jti: str) -> bool:
     return db.query(BlacklistedToken).filter(BlacklistedToken.jti == jti).first() is not None
+
+
+# Delete expired blacklist rows
+def _prune_blacklist(db):
+    now = datetime.now(timezone.utc)
+    db.query(BlacklistedToken).filter(BlacklistedToken.expires_at < now).delete()
+    db.commit()
+
+
+# Create database tables if not exist
+init_db()
+
+
+# Prune expired tokens once at startup
+with get_db() as db:
+    _prune_blacklist(db)
 
 
 @app.route('/health', methods=['GET'])
@@ -115,18 +128,20 @@ def login():
         "message": "Login Successful",
     }), 200
 
+
 @app.route('/auth/exists', methods=['GET'])
 def exists():
-    email = request.args.get("email", "").strip()
+    email = request.args.get("email", "").lower().strip()
     if not email:
         return jsonify({"message": "no email provided"}), 400
     with get_db() as db:
         user = db.query(User).filter(User.email == email).first()
         if not user:
-            return jsonify({"message": "email availiable"}), 200
+            return jsonify({"message": "email available"}), 200
     return jsonify({"message": "email taken"}), 200
 
-# User logout (Elliot)
+
+# User logout (Elliot Hwang)
 @app.route('/auth/logout', methods=['POST'])
 def logout():
     auth_header = request.headers.get('Authorization')
@@ -145,12 +160,12 @@ def logout():
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
+        _prune_blacklist(db)
         if _is_blacklisted(db, jti):
             return jsonify({"message": "Already logged out"}), 200
         _blacklist_token(db, jti, exp)
 
     return jsonify({"message": "Logout successful"}), 200
-
 
 
 # User Delete (Thomas Sharp)
@@ -162,7 +177,11 @@ def delete_account():
         return jsonify({"error": "No token provided"}), 401
 
     token = auth_header.split(' ')[1]
-    info = decode_token(token)
+    # return 401, not 500, on expired/invalid token
+    try:
+        info = decode_token(token)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
 
     jti = info.get('jti')
     exp = info.get('exp')
@@ -187,6 +206,7 @@ def delete_account():
         }
     }), 200
 
+
 # Check token validation
 @app.route('/auth/verify', methods=['GET'])
 def verify():
@@ -195,13 +215,18 @@ def verify():
         return jsonify({"error": "No token provided"}), 401
 
     token = auth_header.split(' ')[1]
-    payload = decode_token(token)
+    # return 401, not 500, on expired/invalid token
+    try:
+        payload = decode_token(token)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 401
 
     jti = payload.get('jti')
     if not jti:
         return jsonify({"error": "Invalid token payload"}), 400
 
     with get_db() as db:
+        _prune_blacklist(db)
         if _is_blacklisted(db, jti):
             return jsonify({"error": "Token revoked"}), 401
 
@@ -213,6 +238,7 @@ def verify():
             "name": payload['name']
         }
     }), 200
+
 
 # Find user by short token
 @app.route('/auth/user-by-short/<short_token>', methods=['GET'])
@@ -228,100 +254,6 @@ def get_user_by_short(short_token):
             "name": user.name,
             "short_token": user.short_token,
         }), 200
-        
-
-
-adminCode = os.getenv("ADMIN_CODE")
-
-@app.template_filter('friendly_datetime')
-def friendly_datetime(value, format="%B %d, %Y at %I:%M %p"):
-    """ Convert the date info from the database into a human readable format
-
-    Args:
-        value (str): The incoming dateTime string
-        format (str): The format options for the returned dateTime string.
-
-    Returns:
-        str: The formatted dateTime string 
-    """
-    if not value:
-        return "NULL"
-    if isinstance(value, str):
-        # Convert ISO string to datetime
-        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
-    return value.strftime(format)
-
-@app.route("/")
-def index():
-    """ Routes the user to the main UI page once opened
-    
-    Returns:
-        rendering of templates/index.html
-    """
-    return render_template("index.html")
-
-@app.route("/renderDebugMode", methods=["POST"])
-def renderDebugMode():
-    """ Routes the user to the admin pannel if the admin code
-        From the "/" route matches the ADMIN_CODE env variable
-    
-    Returns:
-        if the admin code is correct:
-           redirect to the /admin route
-        if the admin code is incoreect:
-            rendering of templates/index.html 
-    """
-    if(request.form.get("AdminCode") == adminCode):
-        return redirect(url_for("adminPannel", access_code = adminCode));
-    return redirect(url_for("index"))
-
-
-@app.route("/admin/<access_code>")
-def adminPannel(access_code):
-    """ Routes the user to the admin pannel via 
-        /admin/<access_code>?view=<view_name>
-
-    Args:
-        access_code (string): The access code for your program
-        view_name (string): the name of the view you want to enter
-                            in the admin pannel
-            Options: [
-    
-    Returns:
-        if all arguments are correct / provided:
-            rendering of the appropiate view from templates/admin-<view_name>View.html
-        if access_code isn't valid:
-            redirect to "/"
-    """
-    if access_code != adminCode:
-        return redirect(url_for("index"))
-    
-    view = request.args.get("view")
-    if view is None:
-        # Redirect to same route with view="users"
-        return redirect(url_for("adminPannel", access_code=access_code, view="users"))
-    with get_db() as db:
-        if view == "users":
-            data = db.query(User).all()  # All email logs
-            return render_template("admin-usersView.html", auth_data=data, access_code=access_code)
-        elif view == "blacklist":
-            data = db.query(BlacklistedToken).all()  # All email logs
-            now = datetime.now(timezone.utc)
-            enriched = []
-            for t in data:
-                expires_at = t.expires_at
-                if expires_at.tzinfo is None:
-                    expires_at = expires_at.replace(tzinfo=timezone.utc)
-                enriched.append({
-                    "id": t.id,
-                    "jti": t.jti,
-                    "created_at": t.created_at,
-                    "expires_at": expires_at,
-                    "valid": expires_at > now
-                })
-            return render_template("admin-blacklistView.html",blacklist_data=enriched,access_code=access_code)
-        elif view == "add_user":
-            return render_template("admin-addUser.html", access_code=access_code)
 
 
 if __name__ == '__main__':

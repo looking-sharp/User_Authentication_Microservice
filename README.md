@@ -63,9 +63,9 @@ POST http://localhost:5001/auth/register
 Content-Type: application/json
 
 {
-  "email": "alice@example.com",
+  "email": "bob@example.com",
   "password": "secret123",
-  "name": "Alice"
+  "name": "Bob"
 }
 ```
 
@@ -94,7 +94,7 @@ Errors:
 POST http://localhost:5001/auth/login
 Content-Type: application/json
 
-{ "email": "alice@example.com", "password": "secret123" }
+{ "email": "bob@example.com", "password": "secret123" }
 ```
 
 **Response:**
@@ -128,7 +128,7 @@ Authorization: Bearer <JWT>
 HTTP 200 OK
 {
   "valid": true,
-  "user": { "id": 1, "email": "alice@example.com", "name": "Alice" }
+  "user": { "id": 1, "email": "bob@example.com", "name": "Bob" }
 }
 ```
 Errors:
@@ -189,8 +189,8 @@ HTTP 400 Bad Request
 HTTP 200 OK
 {
   "id": 1,
-  "email": "alice@example.com",
-  "name": "Alice",
+  "email": "bob@example.com",
+  "name": "Bob",
   "short_token": "KOmorIxUXwiR"
 }
 ```

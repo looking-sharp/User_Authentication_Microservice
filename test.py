@@ -34,9 +34,9 @@ except ImportError:
 #   Configuration
 # ----------------------------
 BASE_URL = os.getenv("AUTH_BASE_URL", "http://localhost:5001")
-DEFAULT_EMAIL = os.getenv("AUTH_TEST_EMAIL", "alice@example.com")
+DEFAULT_EMAIL = os.getenv("AUTH_TEST_EMAIL", "bob@example.com")
 DEFAULT_PASS  = os.getenv("AUTH_TEST_PASS",  "pass1234")
-DEFAULT_NAME  = os.getenv("AUTH_TEST_NAME",  "Alice")
+DEFAULT_NAME  = os.getenv("AUTH_TEST_NAME",  "Bob")
 
 TIMEOUT = 10
 

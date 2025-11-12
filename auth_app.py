@@ -1,4 +1,4 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, redirect, url_for, render_template
 from flask_cors import CORS
 from dotenv import load_dotenv
 from datetime import datetime, timezone
@@ -255,6 +255,105 @@ def get_user_by_short(short_token):
             "short_token": user.short_token,
         }), 200
 
+
+
+adminCode = os.getenv("ADMIN_CODE")
+
+@app.template_filter('friendly_datetime')
+def friendly_datetime(value, format="%B %d, %Y at %I:%M %p"):
+    """ Convert the date info from the database into a human readable format
+
+    Args:
+        value (str): The incoming dateTime string
+        format (str): The format options for the returned dateTime string.
+
+    Returns:
+        str: The formatted dateTime string 
+    """
+    if not value:
+        return "NULL"
+    if isinstance(value, str):
+        # Convert ISO string to datetime
+        value = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    return value.strftime(format)
+
+@app.route("/")
+def index():
+    """ Routes the user to the main UI page once opened
+    
+    Returns:
+        rendering of templates/index.html
+    """
+    return render_template("index.html")
+
+@app.route("/renderDebugMode", methods=["POST"])
+def renderDebugMode():
+    """ Routes the user to the admin pannel if the admin code
+        From the "/" route matches the ADMIN_CODE env variable
+    
+    Returns:
+        if the admin code is correct:
+           redirect to the /admin route
+        if the admin code is incoreect:
+            rendering of templates/index.html 
+    """
+    if(request.form.get("AdminCode") == adminCode):
+        return redirect(url_for("adminPannel", access_code = adminCode));
+    return redirect(url_for("index"))
+
+
+@app.route("/admin/<access_code>")
+def adminPannel(access_code):
+    """ Routes the user to the admin pannel via 
+        /admin/<access_code>?view=<view_name>
+
+    Args:
+        access_code (string): The access code for your program
+        view_name (string): the name of the view you want to enter
+                            in the admin pannel
+            Options: [
+    
+    Returns:
+        if all arguments are correct / provided:
+            rendering of the appropiate view from templates/admin-<view_name>View.html
+        if access_code isn't valid:
+            redirect to "/"
+    """
+    if access_code != adminCode:
+        return redirect(url_for("index"))
+    
+    view = request.args.get("view")
+    if view is None:
+        # Redirect to same route with view="users"
+        return redirect(url_for("adminPannel", access_code=access_code, view="users"))
+    with get_db() as db:
+        if view == "users":
+            data = db.query(User).all()  # All email logs
+            return render_template("admin-usersView.html", auth_data=data, access_code=access_code)
+        elif view == "blacklist":
+            data = db.query(BlacklistedToken).all()  # All email logs
+            now = datetime.now(timezone.utc)
+            enriched = []
+            for t in data:
+                expires_at = t.expires_at
+                if expires_at.tzinfo is None:
+                    expires_at = expires_at.replace(tzinfo=timezone.utc)
+                enriched.append({
+                    "id": t.id,
+                    "jti": t.jti,
+                    "created_at": t.created_at,
+                    "expires_at": expires_at,
+                    "valid": expires_at > now
+                })
+            return render_template("admin-blacklistView.html",blacklist_data=enriched,access_code=access_code)
+        elif view == "add_user":
+            return render_template("admin-addUser.html", access_code=access_code)
+
+
+if __name__ == '__main__':
+    port = int(os.getenv('PORT', 5001))
+
+    app.run(host='0.0.0.0', port=port, debug=True)
 
 if __name__ == '__main__':
     port = int(os.getenv('PORT', 5001))

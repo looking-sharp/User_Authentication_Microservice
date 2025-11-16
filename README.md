@@ -39,16 +39,16 @@ python auth_app.py
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User (Frontend)
-    participant A as Auth Microservice
-    database DB as Database (users)
-    note over U: POST /auth/register {email, password, name}
+    actor U as "User (Frontend)"
+    participant A as "Auth Microservice"
+    participant DB as "Database (users)"
+    Note over U: POST /auth/register {email, password, name}
 
     U->>A: JSON payload
     A->>A: Normalize email (trim + lowercase)
     A->>A: Validate fields (non-empty, pwd length ≥ 6)
-    A->>DB: SELECT users WHERE email = normalized(email)
-    DB-->>A: none or existing user
+    A->>DB: SELECT user WHERE email = normalized(email)
+    DB-->>A: user or none
     alt email available
         A->>A: hash_password(password)
         A->>A: create_short_token(12)
@@ -64,10 +64,10 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User (Frontend)
-    participant A as Auth Microservice
-    database DB as Database (users)
-    note over U: POST /auth/login {email, password}
+    actor U as "User (Frontend)"
+    participant A as "Auth Microservice"
+    participant DB as "Database (users)"
+    Note over U: POST /auth/login {email, password}
 
     U->>A: JSON payload
     A->>A: Normalize email (trim + lowercase)
@@ -92,18 +92,18 @@ sequenceDiagram
 ```mermaid
 sequenceDiagram
     autonumber
-    actor U as User (Frontend)
-    participant A as Auth Microservice
-    database BL as Blacklist (blacklisted_tokens)
-    note over U: POST /auth/logout (Authorization: Bearer <JWT>)
+    actor U as "User (Frontend)"
+    participant A as "Auth Microservice"
+    participant BL as "Blacklist (blacklisted_tokens)"
+    Note over U: POST /auth/logout (Authorization: Bearer &lt;JWT&gt;)
 
     U->>A: Logout request + JWT
     A->>A: decode_token(JWT) -> {jti, exp}
-    A->>A: _prune_blacklist()  %% delete expired rows
-    A->>BL: SELECT jti WHERE jti = token.jti
+    A->>A: _prune_blacklist() (delete expired rows)
+    A->>BL: SELECT by jti
     BL-->>A: found or not found
     alt not found
-        A->>BL: INSERT (jti, expires_at=exp)
+        A->>BL: INSERT (jti, expires_at = exp)
         A-->>U: 200 {message: "Logout successful"}
     else already present
         A-->>U: 200 {message: "Already logged out"}

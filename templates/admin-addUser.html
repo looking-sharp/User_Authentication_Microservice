@@ -1,61 +1,105 @@
 <!DOCTYPE html>
+<html lang="en">
 <head>
-    <title>Admin Pannel</title>
-    <link rel= "stylesheet" type= "text/css" href= "{{ url_for('static',filename='styles/admin.css') }}">
+    <meta charset="UTF-8">
+    <title>Admin Panel - Auth Tester</title>
+    <link rel="stylesheet" type="text/css"
+          href="{{ url_for('static', filename='styles/admin.css') }}">
     <link href="https://cdn.quilljs.com/1.3.7/quill.snow.css" rel="stylesheet">
 </head>
-<body data-view="test_email">
+<body data-view="test_user">
     <ul class="tabs-menu" role="tablist">
         <li class="tabs-menu-item" role="presentation">
-            <a href="/admin/{{access_code}}?view=users" tabindex="0" title="Users View" aria-selected="true" role="tab" data-tab-index="0">Users</a></li>
+            <a href="/admin/{{access_code}}?view=users"
+               tabindex="0" title="Users View"
+               aria-selected="true" role="tab" data-tab-index="0">
+                Users
+            </a>
+        </li>
         <li class="tabs-menu-item" role="presentation">
-            <a href="/admin/{{access_code}}?view=blacklist" tabindex="-1" title="Blacklisted Tokens" aria-selected="false" role="tab" data-tab-index="2">Blacklisted Tokens</a></li>
+            <a href="/admin/{{access_code}}?view=blacklist"
+               tabindex="-1" title="Blacklisted Tokens"
+               aria-selected="false" role="tab" data-tab-index="1">
+                Blacklisted Tokens
+            </a>
+        </li>
         <li class="tabs-menu-item is-active" role="presentation">
-            <a tabindex="-1" title="Add User" aria-selected="false" role="tab" data-tab-index="2">Add User</a></li>
+            <a tabindex="-1" title="Add / Test User"
+               aria-selected="false" role="tab" data-tab-index="2">
+                Add User
+            </a>
+        </li>
     </ul>
 
     <!-- Registration Form -->
     <div class="form-container">
-    <form id="register" class="test-user">
-        <h2>Register</h2>
-        <label>Email: <input type="email" id="regEmail" required></label><br>
-        <label>Name: <input type="text" id="regName" required></label><br>
-        <label>Password: <input type="password" id="regPassword" required></label><br>
-        <button type="submit">Register</button>
-    </form>
-    <div class="response-div">
-        <h2>Response</h2><br>
-        <pre id="registerResponse">{}</pre>
-    </div>
+        <form id="register" class="test-user">
+            <h2>Register</h2>
+            <label>Email:
+                <input type="email" id="regEmail" required>
+            </label><br>
+            <label>Name:
+                <input type="text" id="regName" required>
+            </label><br>
+            <label>Password:
+                <input type="password" id="regPassword" required>
+            </label><br>
+            <button type="submit">Register</button>
+        </form>
+        <div class="response-div">
+            <h2>Response</h2><br>
+            <pre id="registerResponse">{}</pre>
+        </div>
     </div>
 
     <!-- Login Form -->
     <div class="form-container">
-    <form id="login" class="test-user">
-        <h2>Login</h2>
-        <label>Email: <input type="email" id="loginEmail" required></label><br>
-        <label>Password: <input type="password" id="loginPassword" required></label><br>
-        <button id="loginBtn" type="submit">Login</button>
-        <button style="display: none;" type="button" id="logoutBtn">Logout</button>
-        <button style="display: none;" type="button" id="deleteBtn">Delete Account</button>
-    </form>
-    <div class="response-div">
-        <h2>Response</h2><br>
-        <pre id="loginResponse">{}</pre>
+        <form id="login" class="test-user">
+            <h2>Login</h2>
+            <label>Email:
+                <input type="email" id="loginEmail" required>
+            </label><br>
+            <label>Password:
+                <input type="password" id="loginPassword" required>
+            </label><br>
+            <button id="loginBtn" type="submit">Login</button>
+        </form>
+        <div class="response-div">
+            <h2>Response</h2><br>
+            <pre id="loginResponse">{}</pre>
+        </div>
     </div>
+
+    <!-- Logout Form (separate from Login) -->
+    <div class="form-container">
+        <form id="logout" class="test-user">
+            <h2>Logout</h2>
+            <p class="small-note">
+                Uses the most recent JWT returned by a successful Login above.
+            </p>
+            <button id="logoutBtn" type="submit">Logout</button>
+        </form>
+        <div class="response-div">
+            <h2>Response</h2><br>
+            <pre id="logoutResponse">{}</pre>
+        </div>
     </div>
 
     <!-- Verify Form -->
     <div class="form-container">
-    <form id="verify" class="test-user">
-        <h2>Verify</h2>
-        <label>Short Token: <input type="text" id="shortToken" required></label><br>
-        <button id="loginBtn" type="submit">Verify</button>
-    </form>
-    <div class="response-div">
-        <h2>Response</h2><br>
-        <pre id="verifyResponse">{}</pre>
+        <form id="verify" class="test-user">
+            <h2>Verify (Short Token Lookup)</h2>
+            <label>Short Token:
+                <input type="text" id="shortToken" required>
+            </label><br>
+            <button id="verifyBtn" type="submit">Verify</button>
+        </form>
+        <div class="response-div">
+            <h2>Response</h2><br>
+            <pre id="verifyResponse">{}</pre>
+        </div>
     </div>
-    </div>
-    <script src="{{ url_for('static',filename='scripts/addUser.js') }}"></script>
+
+    <script src="{{ url_for('static', filename='scripts/addUser.js') }}"></script>
 </body>
+</html>

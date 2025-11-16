@@ -94,19 +94,21 @@ sequenceDiagram
     autonumber
     actor U as "User (Frontend)"
     participant A as "Auth Microservice"
-    participant BL as "Blacklist (blacklisted_tokens)"
-    Note over U: POST /auth/logout (Authorization: Bearer &lt;JWT&gt;)
+    participant BL as "Blacklist"
 
-    U->>A: Logout request + JWT
-    A->>A: decode_token(JWT) -> {jti, exp}
-    A->>A: _prune_blacklist() (delete expired rows)
-    A->>BL: SELECT by jti
-    BL-->>A: found or not found
-    alt not found
-        A->>BL: INSERT (jti, expires_at = exp)
-        A-->>U: 200 {message: "Logout successful"}
-    else already present
-        A-->>U: 200 {message: "Already logged out"}
+    Note over U: POST /auth/logout with Authorization: Bearer JWT
+
+    U->>A: Logout request (JWT)
+    A->>A: decode_token(JWT)
+    A->>A: prune blacklist (remove expired entries)
+    A->>BL: Lookup jti
+    BL-->>A: found / not found
+
+    alt jti not found in blacklist
+        A->>BL: Insert jti with expires_at
+        A-->>U: 200 Logout successful
+    else jti already blacklisted
+        A-->>U: 200 Already logged out
     end
 ```
 

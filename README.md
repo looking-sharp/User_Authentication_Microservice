@@ -33,213 +33,166 @@ python auth_app.py
 
 ---
 
+## UML Diagrams (Register, Login, Logout)
+
+### Register User Flow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User (Frontend)
+    participant A as Auth Microservice
+    database DB as Database (users)
+    note over U: POST /auth/register {email, password, name}
+
+    U->>A: JSON payload
+    A->>A: Normalize email (trim + lowercase)
+    A->>A: Validate fields (non-empty, pwd length ≥ 6)
+    A->>DB: SELECT users WHERE email = normalized(email)
+    DB-->>A: none or existing user
+    alt email available
+        A->>A: hash_password(password)
+        A->>A: create_short_token(12)
+        A->>DB: INSERT user(email, name, password_hash, short_token)
+        DB-->>A: user_id
+        A-->>U: 201 {user_id, short_token, message}
+    else email exists
+        A-->>U: 409 {error: "Email already exists"}
+    end
+```
+
+### Login Flow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User (Frontend)
+    participant A as Auth Microservice
+    database DB as Database (users)
+    note over U: POST /auth/login {email, password}
+
+    U->>A: JSON payload
+    A->>A: Normalize email (trim + lowercase)
+    A->>A: Validate required fields (email, password)
+    A->>DB: SELECT user WHERE email = normalized(email)
+    DB-->>A: user or none
+    alt user found
+        A->>A: verify_password(plain, password_hash)
+        alt password OK
+            A->>A: if user.short_token missing → create_short_token & persist
+            A->>A: create_token(user_id, email, name, jti, exp)
+            A-->>U: 200 {token, user_id, short_token, message}
+        else wrong password
+            A-->>U: 401 {error: "Invalid email or password"}
+        end
+    else no user
+        A-->>U: 401 {error: "Invalid email or password"}
+    end
+```
+
+### Logout Flow
+```mermaid
+sequenceDiagram
+    autonumber
+    actor U as User (Frontend)
+    participant A as Auth Microservice
+    database BL as Blacklist (blacklisted_tokens)
+    note over U: POST /auth/logout (Authorization: Bearer <JWT>)
+
+    U->>A: Logout request + JWT
+    A->>A: decode_token(JWT) -> {jti, exp}
+    A->>A: _prune_blacklist()  %% delete expired rows
+    A->>BL: SELECT jti WHERE jti = token.jti
+    BL-->>A: found or not found
+    alt not found
+        A->>BL: INSERT (jti, expires_at=exp)
+        A-->>U: 200 {message: "Logout successful"}
+    else already present
+        A-->>U: 200 {message: "Already logged out"}
+    end
+```
+
+---
+
 ## ENDPOINTS
 
-### 1) Health (IMPLEMENTED)
+### Health (IMPLEMENTED)
 
-**Endpoint:** `GET /health`
-
-**Purpose:** Service liveness.
-
-**Response:**
-```
-HTTP 200 OK
-{
-  "status": "ok",
-  "service": "auth-microservice"
-}
-```
+**Endpoint:** `GET /health`  
+Returns simple status for container health checks.
 
 ---
 
-### 2) Register User (IMPLEMENTED)
+### Register (IMPLEMENTED)
 
-**Endpoint:** `POST /auth/register`  
-**Purpose:** Create user with hashed password and short token
+**POST /auth/register**
 
-**Request:**
-```
-POST http://localhost:5001/auth/register
-Content-Type: application/json
+Creates a new user after validating:
+- required fields present  
+- password ≥ 6 chars  
+- email unique  
+- email normalized (lowercase + trimmed)  
 
-{
-  "email": "bob@example.com",
-  "password": "secret123",
-  "name": "Bob"
-}
-```
-
-**Responses:**
-```
-HTTP 201 Created
-{
-  "user_id": 1,
-  "short_token": "KOmorIxUXwiR",
-  "message": "User created successfully"
-}
-```
-Errors:
-- `400 Bad Request`: missing required fields or password too short
-- `409 Conflict`: email already exists
+Returns `201 Created` or `409 Conflict`.
 
 ---
 
-### 3) Login (IMPLEMENTED)
+### Login (IMPLEMENTED)
 
-**Endpoint:** `POST /auth/login`  
-**Purpose:** Authenticate and return a signed JWT + short token (if not already issued)
+**POST /auth/login**
 
-**Request:**
-```
-POST http://localhost:5001/auth/login
-Content-Type: application/json
+Validates credentials, issues:
+- JWT  
+- short_token (persisted if missing)  
 
-{ "email": "bob@example.com", "password": "secret123" }
-```
-
-**Response:**
-```
-HTTP 200 OK
-{
-  "token": "<JWT>",
-  "user_id": 1,
-  "short_token": "KOmorIxUXwiR",
-  "message": "Login Successful"
-}
-```
-Errors:
-- `400 Bad Request`: missing email or password
-- `401 Unauthorized`: invalid credentials
+Returns `200 OK` or `401 Unauthorized`.
 
 ---
 
-### 4) Verify Token (IMPLEMENTED)
+### Verify (IMPLEMENTED)
 
-**Endpoint:** `GET /auth/verify`  
-**Purpose:** Validate JWT, enforce revocation (blacklist), and return user info
+**GET /auth/verify**
 
-**Headers:**
-```
-Authorization: Bearer <JWT>
-```
+Enforces:
+- valid JWT  
+- signature + expiration  
+- blacklist revocation  
 
-**Response:**
-```
-HTTP 200 OK
-{
-  "valid": true,
-  "user": { "id": 1, "email": "bob@example.com", "name": "Bob" }
-}
-```
-Errors:
-- `401 Unauthorized`: missing/invalid/expired/revoked token
-- `400 Bad Request`: invalid token payload (missing jti)
+Returns `200 OK` or `401 Unauthorized`.
 
 ---
 
-### 5) Logout (IMPLEMENTED)
+### Logout (IMPLEMENTED)
 
-**Endpoint:** `POST /auth/logout`  
-**Purpose:** Revoke current JWT by persisting its `jti` until expiration. Idempotent.
+**POST /auth/logout**
 
-**Headers:**
-```
-Authorization: Bearer <JWT>
-```
-
-**Responses:**
-```
-HTTP 200 OK
-{ "message": "Logout successful" }
-
-HTTP 200 OK
-{ "message": "Already logged out" }
-```
-Errors:
-- `401 Unauthorized`: missing/invalid token
+Revokes JWT by storing its `jti` until expiration.  
+Idempotent.
 
 ---
 
-### 6) Email Availability (IMPLEMENTED)
+### Exists (IMPLEMENTED)
 
-**Endpoint:** `GET /auth/exists?email=<email>`  
-**Purpose:** Check if an email is available. Email is normalized (trim + lowercase).
-
-**Responses:**
-```
-HTTP 200 OK
-{ "message": "email taken" }
-
-HTTP 200 OK
-{ "message": "email available" }
-
-HTTP 400 Bad Request
-{ "message": "no email provided" }
-```
+`GET /auth/exists?email=...`  
+Normalized email checked for availability.
 
 ---
 
-### 7) Lookup by Short Token (IMPLEMENTED)
+### user-by-short (IMPLEMENTED)
 
-**Endpoint:** `GET /auth/user-by-short/:short_token`  
-**Purpose:** Resolve user info from short token.
-
-**Response:**
-```
-HTTP 200 OK
-{
-  "id": 1,
-  "email": "bob@example.com",
-  "name": "Bob",
-  "short_token": "KOmorIxUXwiR"
-}
-```
-Errors:
-- `404 Not Found`: `{ "error": "User not found" }`
+Resolves user from short token.
 
 ---
 
-### 8) Delete Account (IMPLEMENTED)
+### Delete Account (IMPLEMENTED)
 
-**Endpoint:** `POST /auth/delete-account`  
-**Purpose:** Delete the authenticated user. Revokes the presented JWT before deletion.
-
-**Headers:**
-```
-Authorization: Bearer <JWT>
-```
-
-**Response:**
-```
-HTTP 200 OK
-{
-  "message": "account successfully deleted",
-  "user": { "id": 2, "email": "deleteme+123@example.com", "name": "ToDelete" }
-}
-```
-Errors:
-- `401 Unauthorized`: revoked/invalid token
-- `400 Bad Request`: invalid token payload
+Revokes presented JWT then deletes user.  
 
 ---
 
 ## JWT & Security Model
 
-- JWT payload includes: `user_id`, `email`, `name`, `jti`, `exp`
-- **Revocation**: `/auth/logout` and `/auth/delete-account` store the `jti` in `blacklisted_tokens` until `exp`
-- **Verification**: `/auth/verify` rejects tokens whose `jti` is blacklisted or whose signature/`exp` is invalid
-- **Pruning**: expired blacklist rows are pruned on service startup and on each `/auth/verify` and `/auth/logout` call
-- **Normalization**: emails are trimmed and lowercased before use
-
----
-
-## Configuration
-
-Environment Variables (`.env`):
-
-- `JWT_SECRET` — signing key (default: `change-me-in-prod`)
-- `DATABASE_URL` — SQLAlchemy URL (default: SQLite at `../data/auth.db`)
-- `PORT` — Flask port (default: `5001`)
+- Token includes: `user_id`, `email`, `name`, `jti`, `exp`
+- Revocation via blacklist
+- Prune on startup + verify + logout
 
 ---
 
@@ -289,4 +242,3 @@ SQLAlchemy==2.0.44
 | **/auth/exists**            | COMPLETE   | normalized email check                  |
 | **/auth/user-by-short**     | COMPLETE   | 404 on unknown                          |
 | **/auth/delete-account**    | COMPLETE   | revokes then deletes user               |
-| **Blacklist prune**         | COMPLETE   | startup + verify/logout                 |
